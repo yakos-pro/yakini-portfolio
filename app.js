@@ -283,9 +283,12 @@ function initChatbot() {
     "Comment le contacter ?"
   ];
 
+  let chatHistory = [];
+
   // Réinitialiser la conversation
   const resetChat = () => {
     messagesContainer.innerHTML = '';
+    chatHistory = [];
     appendMessage(initialMessage, 'bot');
     renderSuggestions();
   };
@@ -327,7 +330,7 @@ function initChatbot() {
     }
   };
 
-  // Moteur de recherche de réponses basiques
+  // Moteur de recherche de réponses basiques de secours
   const getAgentResponse = (userQuery) => {
     const normalized = userQuery.toLowerCase()
       .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Retirer les accents
@@ -349,7 +352,7 @@ function initChatbot() {
     return fallbackResponses[randomIdx];
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = inputEl.value.trim();
     if (!text) return;
 
@@ -358,12 +361,37 @@ function initChatbot() {
 
     showTypingIndicator();
 
-    // Simuler le délai d'inférence de l'agent
-    setTimeout(() => {
+    try {
+      const response = await fetch('http://localhost:8000/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: text,
+          history: chatHistory
+        })
+      });
+
+      const data = await response.json();
+      removeTypingIndicator();
+      
+      const reply = data.response;
+      appendMessage(reply, 'bot');
+      
+      // Mettre à jour l'historique
+      chatHistory.push({ role: 'user', content: text });
+      chatHistory.push({ role: 'bot', content: reply });
+      
+    } catch (error) {
+      console.warn('Erreur chatbot backend, utilisation du secours local:', error);
       removeTypingIndicator();
       const reply = getAgentResponse(text);
       appendMessage(reply, 'bot');
-    }, 1000);
+      
+      chatHistory.push({ role: 'user', content: text });
+      chatHistory.push({ role: 'bot', content: reply });
+    }
   };
 
   // Handlers
@@ -489,7 +517,7 @@ function initContactForm() {
 
   if (!form || !feedback) return;
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const name = document.getElementById('form-name').value.trim();
@@ -508,14 +536,38 @@ function initContactForm() {
     const originalText = submitBtn.innerHTML;
     submitBtn.innerHTML = `Envoi en cours... <span class="typing-dot" style="background:#000; width:5px; height:5px; margin:0 2px;"></span>`;
 
-    setTimeout(() => {
-      feedback.innerHTML = `<strong>Merci ${name} !</strong> Votre message a bien été simulé pour cette démonstration. Dans un environnement réel, ce formulaire enverrait un email à yakandres3@gmail.com.`;
+    try {
+      const response = await fetch('http://localhost:8000/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name, email, subject, message })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.simulation) {
+          feedback.innerHTML = `<strong>Merci ${name} !</strong> Votre message a bien été simulé en local (mode développement).`;
+        } else {
+          feedback.innerHTML = `<strong>Merci ${name} !</strong> Votre message a été envoyé avec succès à Yakini.`;
+        }
+        feedback.className = "form-feedback success";
+        form.reset();
+      } else {
+        feedback.textContent = data.detail || "Une erreur est survenue lors de l'envoi du message.";
+        feedback.className = "form-feedback error";
+      }
+    } catch (error) {
+      console.warn('Erreur envoi contact backend, utilisation du secours local:', error);
+      feedback.innerHTML = `<strong>Merci ${name} !</strong> Votre message a été simulé en local car le serveur backend n'est pas actif.`;
       feedback.className = "form-feedback success";
-      
       form.reset();
+    } finally {
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalText;
-    }, 1500);
+    }
   });
 }
 
