@@ -1,0 +1,6 @@
+fastapi
+pydantic
+google-genai
+resend
+python-dotenv
+email-validator

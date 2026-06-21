@@ -362,7 +362,7 @@ function initChatbot() {
     showTypingIndicator();
 
     try {
-      const response = await fetch('http://localhost:8000/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -537,7 +537,7 @@ function initContactForm() {
     submitBtn.innerHTML = `Envoi en cours... <span class="typing-dot" style="background:#000; width:5px; height:5px; margin:0 2px;"></span>`;
 
     try {
-      const response = await fetch('http://localhost:8000/api/contact', {
+      const response = await fetch('/api/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
